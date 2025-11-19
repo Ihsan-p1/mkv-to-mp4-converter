@@ -1,0 +1,8 @@
+# Abaikan file video
+*.mkv
+*.mp4
+
+# Abaikan folder virtual environment (jika ada)
+venv/
+__pycache__/
+.DS_Store
