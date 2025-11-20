@@ -1,51 +1,54 @@
 import ffmpeg
 import os
 
-def convert_semua_video():
-    # Mengambil lokasi folder tempat skrip ini berada
+def convert_video_pisah_subtitle():
     folder_sekarang = os.getcwd()
-    
-    # Mendapatkan daftar semua file di folder ini
     semua_file = os.listdir(folder_sekarang)
 
-    print(f"--- Memulai Konversi di Folder: {folder_sekarang} ---")
-
+    print(f"--- Mode: Ekstrak Subtitle ke SRT & Video ke MP4 ---")
+    print(f"Lokasi: {folder_sekarang}")
+    
     jumlah_sukses = 0
 
     for nama_file in semua_file:
-        # Cek apakah file berakhiran .mkv (Case insensitive, jadi .MKV atau .mkv terbaca)
         if nama_file.lower().endswith(".mkv"):
             
-            # Tentukan nama input dan nama output
             input_path = os.path.join(folder_sekarang, nama_file)
             
-            # Mengubah ekstensi dari .mkv menjadi .mp4
-            # Contoh: "[Zensubs]... 01.mkv" -> "[Zensubs]... 01.mp4"
-            nama_output = os.path.splitext(nama_file)[0] + ".mp4"
-            output_path = os.path.join(folder_sekarang, nama_output)
+            # Nama file output (tanpa ekstensi)
+            nama_dasar = os.path.splitext(nama_file)[0]
+            
+            output_mp4 = os.path.join(folder_sekarang, nama_dasar + ".mp4")
+            output_srt = os.path.join(folder_sekarang, nama_dasar + ".srt")
 
             print(f"\nSedang memproses: {nama_file}")
 
             try:
-                # PROSES STREAM COPY (Tanpa ubah resolusi)
-                stream = ffmpeg.input(input_path)
-                stream = ffmpeg.output(stream, output_path, vcodec='copy', acodec='copy')
+                in_file = ffmpeg.input(input_path)
+
+                # Output 1: Video & Audio saja ke MP4 (Copy quality)
+                # 'sn': None artinya "No Subtitle" di dalam MP4-nya (supaya tidak error/konflik)
+                video_stream = in_file.output(output_mp4, vcodec='copy', acodec='copy', **{'sn': None})
+
+                # Output 2: Ambil Subtitle, ubah jadi SRT
+                # Kita memaksa subtitle stream pertama (biasanya dialog) jadi srt
+                sub_stream = in_file.output(output_srt, scodec='srt')
+
+                # Jalankan keduanya sekaligus
+                ffmpeg.merge_outputs(video_stream, sub_stream).run(overwrite_output=True, quiet=True)
                 
-                # Jalankan (quiet=True agar log tidak terlalu berisik)
-                ffmpeg.run(stream, overwrite_output=True, quiet=True)
-                
-                print(f"[OK] Sukses! Disimpan sebagai: {nama_output}")
+                print(f"✅ Sukses!")
+                print(f"   -> Video: {nama_dasar}.mp4")
+                print(f"   -> Subs : {nama_dasar}.srt")
                 jumlah_sukses += 1
 
             except ffmpeg.Error as e:
-                print(f"[GAGAL] Gagal memproses {nama_file}")
+                print(f"❌ Gagal pada file ini. Mungkin tidak ada subtitle di dalamnya?")
+                # print(e.stderr.decode('utf8')) # Uncomment untuk debug
 
     print("-" * 30)
-    if jumlah_sukses == 0:
-        print("Tidak ada file .mkv yang ditemukan. Pastikan skrip ini satu folder dengan videonya.")
-    else:
-        print(f"Selesai! Total {jumlah_sukses} video berhasil dikonversi.")
+    print(f"Selesai! {jumlah_sukses} episode berhasil diproses.")
 
-# --- Eksekusi ---
 if __name__ == "__main__":
-    convert_semua_video()
+    convert_video_pisah_subtitle()
+    input("\nTekan Enter untuk keluar...")
